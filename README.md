@@ -220,11 +220,22 @@ cp board/config/db.example.php board/config/db.php
 
 ## 트러블슈팅
 
-### HTTP 500 오류 (로그인/회원가입 페이지)
+### 1. HTTP 500 오류 (로그인/회원가입 페이지)
 
-**원인**: Ubuntu에서 MySQL `root` 계정은 `auth_socket` 방식을 사용하므로 웹서버(www-data)에서 접근 불가
+**오류 메시지**
+```
+This page isn't working. localhost is currently unable to handle this request. HTTP ERROR 500
+```
 
-**해결**: 전용 MySQL 계정 생성 후 `db.php`의 `DB_USER` / `DB_PASS` 수정
+**Apache 에러 로그**
+```
+PHP Fatal error: Uncaught PDOException: SQLSTATE[HY000] [1698]
+Access denied for user 'root'@'localhost' in /var/www/html/board/config/db.php
+```
+
+**원인**: Ubuntu의 MySQL `root` 계정은 `auth_socket` 플러그인 방식으로 동작하여, 웹서버 프로세스(`www-data`)에서 비밀번호로 접근 불가
+
+**해결**: 전용 MySQL 계정을 생성하고 `db.php`의 접속 정보를 변경
 
 ```bash
 sudo mysql -e "
@@ -234,16 +245,84 @@ FLUSH PRIVILEGES;
 "
 ```
 
-### `/var/www/html/` 쓰기 권한 없음
+`board/config/db.php` 수정:
+```php
+define('DB_USER', 'board_user');
+define('DB_PASS', 'board1234');
+```
 
-**원인**: Apache 웹 루트는 root 소유
+---
 
-**해결**: `setup.sh`를 통해 sudo로 복사 후 www-data 소유권 설정
+### 2. `/var/www/html/` 쓰기 권한 없음
+
+**오류 메시지**
+```
+Permission denied
+```
+
+**원인**: Apache 웹 루트(`/var/www/html/`)는 `root` 소유이므로 일반 사용자 계정으로 파일 복사 불가
+
+**해결**: `sudo`로 복사 후 `www-data` 소유권 설정
 
 ```bash
 sudo cp -r board /var/www/html/
 sudo chown -R www-data:www-data /var/www/html/board
+sudo chmod -R 755 /var/www/html/board
 ```
+
+---
+
+### 3. git commit 실패 - 사용자 정보 없음
+
+**오류 메시지**
+```
+Author identity unknown
+Please tell me who you are.
+```
+
+**원인**: git 전역 사용자 정보가 설정되지 않음
+
+**해결**: git 사용자 정보 등록
+
+```bash
+git config --global user.name "GitHub 아이디"
+git config --global user.email "GitHub 이메일"
+```
+
+---
+
+### 4. git push 거절 - 원격 브랜치 충돌
+
+**오류 메시지**
+```
+! [rejected] main -> main (fetch first)
+Updates were rejected because the remote contains work that you do not have locally.
+```
+
+**원인**: GitHub 레포지토리에 이미 커밋이 존재하여 로컬과 히스토리가 다름
+
+**해결**: rebase로 원격 내용을 가져온 후 push
+
+```bash
+git pull --rebase origin main
+git push origin main
+```
+
+---
+
+### 5. git push 403 오류 - 접근 권한 없음
+
+**오류 메시지**
+```
+remote: Permission to wuerphe39/yuminhyung.git denied
+fatal: unable to access: The requested URL returned error: 403
+```
+
+**원인**: Personal Access Token에 `repo` 권한이 없거나 만료됨
+
+**해결**: GitHub에서 `repo` 권한을 포함한 새 토큰 발급
+
+> GitHub → Settings → Developer settings → Personal access tokens → Generate new token → `repo` 체크
 
 ---
 
