@@ -4,6 +4,94 @@ LAMP 스택을 활용한 회원 로그인 및 게시판 웹 애플리케이션
 
 ---
 
+## 시스템 아키텍처
+
+```mermaid
+graph TB
+    subgraph Client["클라이언트"]
+        Browser["브라우저\n(HTML/CSS/Bootstrap 5)"]
+    end
+
+    subgraph LAMP["LAMP 스택 서버 (Zorin OS)"]
+        Apache["Apache2\nWeb Server"]
+
+        subgraph PHP["PHP 8.x 애플리케이션"]
+            index["index.php\n메인 진입점"]
+
+            subgraph Auth["auth/"]
+                login["login.php"]
+                logout["logout.php"]
+                register["register.php"]
+            end
+
+            subgraph Board["board/"]
+                list["list.php\n글 목록 (페이징)"]
+                view["view.php\n글 상세 + 댓글"]
+                write["write.php\n글 작성"]
+                edit["edit.php\n글 수정/삭제"]
+            end
+
+            subgraph Includes["includes/"]
+                header["header.php"]
+                footer["footer.php"]
+            end
+
+            subgraph Config["config/"]
+                db["db.php\nDB 연결 설정"]
+            end
+        end
+
+        MySQL[("MySQL\nusers · posts · comments")]
+    end
+
+    Browser -->|"HTTP Request"| Apache
+    Apache --> index
+    index --> Auth
+    index --> Board
+    Auth --> db
+    Board --> db
+    db --> MySQL
+    Includes -.->|"공통 UI"| Auth
+    Includes -.->|"공통 UI"| Board
+    Apache -->|"HTTP Response"| Browser
+```
+
+---
+
+## 데이터베이스 ERD
+
+```mermaid
+erDiagram
+    users {
+        INT user_id PK
+        VARCHAR username
+        VARCHAR password
+        VARCHAR email
+        DATETIME created_at
+    }
+    posts {
+        INT post_id PK
+        INT user_id FK
+        VARCHAR title
+        TEXT content
+        INT views
+        DATETIME created_at
+    }
+    comments {
+        INT comment_id PK
+        INT post_id FK
+        INT user_id FK
+        TEXT content
+        DATETIME created_at
+    }
+
+    users ||--o{ posts : "작성"
+    users ||--o{ comments : "작성"
+    posts ||--o{ comments : "포함"
+```
+
+---
+
 ## 기술 스택
 
 | 구분 | 기술 |
